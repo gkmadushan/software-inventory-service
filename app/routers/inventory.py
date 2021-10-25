@@ -80,8 +80,11 @@ def create(details: CreateVarient, commons: dict = Depends(common_params), db: S
     }
 
 @router.get("/varients")
-def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, commons: dict = Depends(common_params), db: Session = Depends(get_db), id: Optional[str] = None, name: Optional[str] = None, vendor: Optional[str] = None, code: Optional[str] = None, item: Optional[str] = None):
+def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, commons: dict = Depends(common_params), db: Session = Depends(get_db), id: Optional[str] = None, name: Optional[str] = None, vendor: Optional[str] = None, code: Optional[str] = None, item_id: Optional[str] = None):
     filters = []
+
+    if(item_id):
+        filters.append(InventoryItemVarient.inventory_item_id == item_id)
 
     if(name):
         filters.append(InventoryItem.name.ilike(name+'%'))
@@ -96,19 +99,17 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
     query = db.query(
         over(func.row_number(), order_by=InventoryItem.name).label('index'),
         InventoryItemVarient.id,
-        InventoryItemVarient.name,
-        InventoryItemVarient.code,
-        InventoryItemVarient.description,
-        InventoryItemVarient.vendor,
-        InventoryItemVarient.contact
+        InventoryItemVarient.version,
+        InventoryItemVarient.notes,
+        InventoryItemVarient.configured_resource_id
     )
 
-    query, pagination = apply_pagination(query.where(and_(*filters)).order_by(InventoryItem.name.asc()), page_number = int(page), page_size = int(limit))
+    query, pagination = apply_pagination(query.join(InventoryItemVarient.inventory_item).where(and_(*filters)).order_by(InventoryItem.name.asc()), page_number = int(page), page_size = int(limit))
 
     response = {
         "data": query.all(),
         "meta":{
-            "totalRecords": pagination.total_results,
+            "total_records": pagination.total_results,
             "limit": pagination.page_size,
             "num_pages": pagination.num_pages,
             "current_page": pagination.page_number
@@ -146,7 +147,7 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
     response = {
         "data": query.all(),
         "meta":{
-            "totalRecords": pagination.total_results,
+            "total_records": pagination.total_results,
             "limit": pagination.page_size,
             "num_pages": pagination.num_pages,
             "current_page": pagination.page_number
