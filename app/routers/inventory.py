@@ -29,11 +29,12 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+
 @router.post("")
 def create(details: CreateInventory, commons: dict = Depends(common_params), db: Session = Depends(get_db)):
-    #generate token
+    # generate token
     id = details.id or uuid.uuid4().hex
-        
+
     item = InventoryItem(
         id=id,
         name=details.name,
@@ -41,9 +42,9 @@ def create(details: CreateInventory, commons: dict = Depends(common_params), db:
         vendor=details.vendor,
         contact=details.contact,
         description=details.description
-    )    
+    )
 
-    #commiting data to db
+    # commiting data to db
     try:
         db.add(item)
         db.commit()
@@ -51,24 +52,25 @@ def create(details: CreateInventory, commons: dict = Depends(common_params), db:
         db.rollback()
         raise HTTPException(status_code=422, detail="Unable to create new inventory item")
     return {
-        "success": True
+        "success": True,
     }
+
 
 @router.post("/varients")
 def create(details: CreateVarient, commons: dict = Depends(common_params), db: Session = Depends(get_db)):
-    #generate token
+    # generate token
     id = details.id or uuid.uuid4().hex
     item = db.query(InventoryItem).get(details.inventory_item.strip())
-        
+
     varient = InventoryItemVarient(
         id=id,
         inventory_item=item,
         version=details.version,
         notes=details.notes,
         configured_resource_id=details.configured_resource_id
-    )    
+    )
 
-    #commiting data to db
+    # commiting data to db
     try:
         db.add(varient)
         db.commit()
@@ -79,6 +81,7 @@ def create(details: CreateVarient, commons: dict = Depends(common_params), db: S
         "success": True
     }
 
+
 @router.get("/varients")
 def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, commons: dict = Depends(common_params), db: Session = Depends(get_db), id: Optional[str] = None, name: Optional[str] = None, vendor: Optional[str] = None, code: Optional[str] = None, item_id: Optional[str] = None):
     filters = []
@@ -88,13 +91,14 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
 
     if(name):
         filters.append(InventoryItem.name.ilike(name+'%'))
+    else:
+        filters.append(InventoryItem.name.ilike('%'))
 
     if(vendor):
         filters.append(InventoryItem.vendor.ilike(vendor+'%'))
 
     if(code):
         filters.append(InventoryItem.code.ilike(code+'%'))
-
 
     query = db.query(
         over(func.row_number(), order_by=InventoryItem.name).label('index'),
@@ -104,11 +108,12 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
         InventoryItemVarient.configured_resource_id
     )
 
-    query, pagination = apply_pagination(query.join(InventoryItemVarient.inventory_item).where(and_(*filters)).order_by(InventoryItem.name.asc()), page_number = int(page), page_size = int(limit))
+    query, pagination = apply_pagination(query.join(InventoryItemVarient.inventory_item).where(
+        and_(*filters)).order_by(InventoryItem.name.asc()), page_number=int(page), page_size=int(limit))
 
     response = {
         "data": query.all(),
-        "meta":{
+        "meta": {
             "total_records": pagination.total_results,
             "limit": pagination.page_size,
             "num_pages": pagination.num_pages,
@@ -118,19 +123,21 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
 
     return response
 
+
 @router.get("")
 def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, commons: dict = Depends(common_params), db: Session = Depends(get_db), id: Optional[str] = None, name: Optional[str] = None, vendor: Optional[str] = None, code: Optional[str] = None):
     filters = []
 
     if(name):
         filters.append(InventoryItem.name.ilike(name+'%'))
+    else:
+        filters.append(InventoryItem.name.ilike('%'))
 
     if(vendor):
         filters.append(InventoryItem.vendor.ilike(vendor+'%'))
 
     if(code):
         filters.append(InventoryItem.code.ilike(code+'%'))
-
 
     query = db.query(
         over(func.row_number(), order_by=InventoryItem.name).label('index'),
@@ -142,11 +149,12 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
         InventoryItem.contact
     )
 
-    query, pagination = apply_pagination(query.where(and_(*filters)).order_by(InventoryItem.name.asc()), page_number = int(page), page_size = int(limit))
+    query, pagination = apply_pagination(query.where(
+        and_(*filters)).order_by(InventoryItem.name.asc()), page_number=int(page), page_size=int(limit))
 
     response = {
         "data": query.all(),
-        "meta":{
+        "meta": {
             "total_records": pagination.total_results,
             "limit": pagination.page_size,
             "num_pages": pagination.num_pages,
@@ -155,7 +163,6 @@ def get_by_filter(page: Optional[str] = 1, limit: Optional[int] = page_size, com
     }
 
     return response
-    
 
 
 @router.delete("/varients/{id}")
@@ -164,6 +171,7 @@ def delete_by_id(id: str, commons: dict = Depends(common_params), db: Session = 
     db.delete(varient)
     db.commit()
     return Response(status_code=204)
+
 
 @router.delete("/{id}")
 def delete_by_id(id: str, commons: dict = Depends(common_params), db: Session = Depends(get_db)):
@@ -194,21 +202,19 @@ def get_by_id(id: str, commons: dict = Depends(common_params), db: Session = Dep
     }
     return response
 
+
 @router.put("/{id}")
-def update(id:str, details: CreateInventory, commons: dict = Depends(common_params), db: Session = Depends(get_db)):
-    #Set user entity
+def update(id: str, details: CreateInventory, commons: dict = Depends(common_params), db: Session = Depends(get_db)):
+    # Set user entity
     item = db.query(InventoryItem).get(id)
 
-    id = details.id or uuid.uuid4().hex
+    item.name = details.name
+    item.description = details.description
+    item.code = details.code
+    item.vendor = details.vendor
+    item.contact = details.contact
 
-    item.id=id
-    item.name=details.name
-    item.description=details.description
-    item.code=details.code
-    item.vendor=details.vendor
-    item.contact=details.contact
-
-    #commiting data to db
+    # commiting data to db
     try:
         db.add(item)
         db.commit()
@@ -218,5 +224,3 @@ def update(id:str, details: CreateInventory, commons: dict = Depends(common_para
     return {
         "success": True
     }
-
-
